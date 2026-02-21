@@ -1,0 +1,336 @@
+openapi: 3.1.0
+info:
+  title: Modulate STT Streaming Server
+  version: 0.0.0
+  description: |
+    API for streaming speech-to-text via WebSocket. This service
+    provides live transcription with automatic language detection,
+    including speaker diarization, emotion/accent detection, and PII/PHI tagging.
+
+    **Features:**
+    - Real-time streaming transcription via WebSocket
+    - Multilingual automatic transcription with language detection
+    - Speaker diarization (identifies different speakers)
+    - Emotion and accent detection per utterance
+    - PII/PHI tagging for privacy-sensitive content
+    - Utterance-level results delivered as they are completed
+    - Live audio streaming with immediate results
+
+    **Connection Protocol:**
+    1. Client connects to WebSocket endpoint with authentication
+    2. Client streams raw audio data as binary frames
+    3. Server sends JSON messages with completed utterances
+    4. Client sends empty text frame to signal end of audio
+    5. Server sends final completion message and closes connection
+
+    **Audio Format:**
+    - Send raw audio data as binary WebSocket frames
+    - Supported formats: AAC, AIFF, FLAC, MP3, MP4, MOV, OGG, Opus, WAV, WebM
+    - Opus recommended for optimal quality and bandwidth
+    - Send audio chunks as they become available for real-time processing
+
+    **Authentication:**
+    Authentication is provided via the `api_key` query parameter when establishing the
+    WebSocket connection.
+
+    **Rate Limiting:**
+    - Concurrent connection limits apply per organization and model
+    - Monthly usage limits (in audio hours) apply per organization and model
+    - Connections exceeding limits will be rejected during handshake
+
+servers:
+  - url: wss://modulate-prototype-apis.com
+    description: Modulate STT Streaming Server
+
+paths:
+  /api/velma-2-stt-streaming:
+    get:
+      summary: Stream audio for real-time transcription with automatic language detection
+      description: |
+        Establish a WebSocket connection for real-time transcription with automatic language
+        detection. The service automatically identifies the language(s) spoken in the audio
+        stream and transcribes accordingly.
+
+        **Language Detection:**
+        The service automatically detects the language for each utterance in real-time.
+        Different utterances within the same stream may be identified as different languages
+        if code-switching occurs.
+
+        **Connection Flow:**
+        1. Connect with `api_key` and optional query parameters
+        2. Connection will be accepted if authentication succeeds and limits are not exceeded
+        3. Stream audio data as binary WebSocket frames
+        4. Receive utterance results as JSON messages
+        5. Send empty text frame ("") when audio stream ends
+        6. Receive final "done" message with total audio duration
+        7. Connection closes automatically after completion
+
+        **Client Message Format:**
+        - Binary frames: Raw audio data chunks
+        - Text frame with empty string (""): Signals end of audio stream
+
+        **Server Message Format:**
+        All server messages are JSON with a "type" field:
+        - `{"type": "utterance", "utterance": {...}}`: A completed utterance
+        - `{"type": "error", "error": "..."}`: An error occurred
+        - `{"type": "done", "duration_ms": 12345}`: Transcription complete
+
+        **Error Handling:**
+        If an error occurs during transcription, the server sends an error message and closes
+        the connection. Connection rejections during handshake use WebSocket close codes.
+      operationId: streamMultilingualAudio
+      parameters:
+        - name: api_key
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: |
+            Your API key for authentication. Must be provided as a query parameter when
+            establishing the WebSocket connection.
+          example: "5767b366-3a40-4ec3-b2d0-6072436b0f4f"
+
+        - name: speaker_diarization
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: |
+            Enable speaker diarization to identify different speakers in the audio stream.
+            When enabled, each utterance includes a speaker identifier (1-indexed integer).
+          example: true
+
+        - name: emotion_signal
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: |
+            Enable emotion detection for each utterance. When enabled, the `emotion` field
+            in each utterance will contain the detected emotional tone of the speaker.
+          example: false
+
+        - name: accent_signal
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: |
+            Enable accent detection for each utterance. When enabled, the `accent` field
+            in each utterance will contain the detected accent of the speaker.
+          example: false
+
+        - name: pii_phi_tagging
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: |
+            Enable PII/PHI tagging. When enabled, personally identifiable information and
+            personal health information in the transcribed text will be wrapped with
+            appropriate tags.
+          example: false
+
+      responses:
+        '101':
+          description: WebSocket connection established successfully
+
+        '400':
+          description: Bad request - Invalid query parameters
+
+        '4001':
+          description: |
+            WebSocket close code: Invalid API key. The provided API key is not valid.
+            Connection is rejected during handshake.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Invalid API key"
+
+        '4003':
+          description: |
+            WebSocket close code: Access to this model is not enabled for your organization.
+            Connection is rejected during handshake.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Access to this model is not enabled for your organization."
+
+        '4029':
+          description: |
+            WebSocket close code: Rate limit exceeded. Either monthly usage limit has been
+            exceeded or too many concurrent connections are active. Connection is rejected
+            during handshake.
+          content:
+            text/plain:
+              schema:
+                type: string
+                examples:
+                  monthly_limit:
+                    value: "Monthly usage limit exceeded."
+                    summary: Monthly limit reached
+                  concurrent_limit:
+                    value: "Too many concurrent requests."
+                    summary: Too many concurrent connections
+
+      x-websocket-messages:
+        client-to-server:
+          binary:
+            description: Raw audio data chunk for real-time transcription
+            schema:
+              type: string
+              format: binary
+
+          end-of-stream:
+            description: Empty text frame signals end of audio stream
+            schema:
+              type: string
+              enum: [""]
+              example: ""
+
+        server-to-client:
+          utterance:
+            description: A completed utterance with detected language
+            schema:
+              type: object
+              required:
+                - type
+                - utterance
+              properties:
+                type:
+                  type: string
+                  enum: [utterance]
+                utterance:
+                  $ref: '#/components/schemas/StreamingUtterance'
+            example:
+              type: utterance
+              utterance:
+                utterance_uuid: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                text: "Bonjour, comment allez-vous?"
+                start_ms: 0
+                duration_ms: 2800
+                speaker: 1
+                language: "fr"
+                emotion: null
+                accent: null
+
+          error:
+            description: An error occurred during transcription
+            schema:
+              type: object
+              required:
+                - type
+                - error
+              properties:
+                type:
+                  type: string
+                  enum: [error]
+                error:
+                  type: string
+                  description: Human-readable error message
+            example:
+              type: error
+              error: "Internal server error"
+
+          done:
+            description: Transcription completed successfully
+            schema:
+              type: object
+              required:
+                - type
+                - duration_ms
+              properties:
+                type:
+                  type: string
+                  enum: [done]
+                duration_ms:
+                  type: integer
+                  format: int32
+                  minimum: 0
+                  description: Total duration of audio processed in milliseconds
+            example:
+              type: done
+              duration_ms: 45000
+
+components:
+  schemas:
+    StreamingUtterance:
+      type: object
+      required:
+        - utterance_uuid
+        - text
+        - start_ms
+        - duration_ms
+        - speaker
+        - language
+        - emotion
+        - accent
+      properties:
+        utterance_uuid:
+          type: string
+          format: uuid
+          description: |
+            Unique identifier for this utterance. Can be used for tracking and correlating
+            utterances across systems.
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        text:
+          type: string
+          description: |
+            The transcribed text for this utterance. Represents a single continuous segment
+            of speech detected in the audio stream. May contain PII/PHI tags if tagging
+            is enabled.
+          example: "Hello, how are you today?"
+        start_ms:
+          type: integer
+          format: int32
+          minimum: 0
+          description: |
+            The start time of this utterance in milliseconds, relative to the beginning
+            of the audio stream. Allows precise synchronization with the original audio timing.
+          example: 0
+        duration_ms:
+          type: integer
+          format: int32
+          minimum: 0
+          description: |
+            The duration of this utterance in milliseconds.
+          example: 2500
+        speaker:
+          type: integer
+          description: |
+            Speaker identifier for this utterance (1-indexed). When speaker diarization is
+            enabled, this identifies which speaker produced this utterance. Speaker numbers
+            are consistent within a single connection but may vary between different connections.
+          example: 1
+        language:
+          type: string
+          description: |
+            The automatically detected language code for this utterance (e.g., "en" for English,
+            "fr" for French).
+          example: "en"
+        emotion:
+          type: string
+          nullable: true
+          description: |
+            The detected emotional tone of the speaker for this utterance. Only present when
+            `emotion_signal` is enabled. Possible values include: Neutral, Calm, Happy, Amused,
+            Excited, Proud, Affectionate, Interested, Hopeful, Frustrated, Angry, Contemptuous,
+            Concerned, Afraid, Sad, Ashamed, Bored, Tired, Surprised, Anxious, Stressed,
+            Disgusted, Disappointed, Confused, Relieved, Confident.
+          example: "Neutral"
+        accent:
+          type: string
+          nullable: true
+          description: |
+            The detected accent of the speaker for this utterance. Only present when
+            `accent_signal` is enabled. Possible values include: American, British, Australian,
+            Southern, Indian, Irish, Scottish, Eastern_European, African, Asian,
+            Latin_American, Middle_Eastern, Unknown.
+          example: "American"

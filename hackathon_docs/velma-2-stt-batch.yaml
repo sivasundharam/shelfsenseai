@@ -1,0 +1,310 @@
+openapi: 3.1.0
+info:
+  title: Modulate STT Batch Server
+  version: 0.0.0
+  description: |
+    API for batch transcribing audio files. This service supports multilingual
+    transcription with automatic language detection and advanced features including
+    speaker diarization, voice activity detection, emotion detection, accent
+    detection, PII/PHI tagging, and detailed utterance-level information.
+
+    **Features:**
+    - Multilingual automatic transcription with language detection
+    - Speaker diarization (identifies different speakers)
+    - Emotion detection per utterance
+    - Accent detection per utterance
+    - PII/PHI tagging
+    - Utterance-level timing information
+    - Support for audio files up to 100MB
+    - Returns full transcript plus detailed utterance metadata
+
+    **Audio Format:**
+    - Supported formats: AAC, AIFF, FLAC, MP3, MP4, MOV, OGG, Opus, WAV, WebM
+    - Maximum file size: 100MB
+
+    **Authentication:**
+    All API requests require authentication using an API key provided in the `X-API-Key` header.
+
+    **Rate Limiting:**
+    - Concurrent request limits apply per organization and model
+    - Monthly usage limits (in audio hours) apply per organization and model
+    - Requests exceeding limits will receive appropriate error responses
+
+servers:
+  - url: https://modulate-prototype-apis.com
+    description: Modulate STT Batch Server
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /api/velma-2-stt-batch:
+    post:
+      summary: Transcribe audio file with automatic language detection
+      description: |
+        Transcribe an audio file with automatic language detection. The service automatically
+        identifies the language(s) spoken in the audio and transcribes accordingly. Supports
+        multiple languages and can handle code-switching within a single audio file.
+
+        **Language Detection:**
+        The service automatically detects the language for each utterance. Different utterances
+        within the same audio file may be identified as different languages if code-switching occurs.
+
+        **Speaker Diarization:**
+        When enabled, identifies different speakers and assigns consistent speaker labels
+        throughout the audio.
+
+        **Utterances:**
+        The response includes detailed utterance information with precise timing, allowing you to
+        synchronize text with the original audio or analyze conversation patterns.
+      operationId: transcribeMultilingualBatch
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - upload_file
+              properties:
+                upload_file:
+                  type: string
+                  format: binary
+                  description: |
+                    Audio file to transcribe. Supported formats: AAC, AIFF, FLAC, MP3, MP4, MOV, OGG, Opus, WAV, WebM.
+                    Maximum file size: 100MB.
+                    Empty files are rejected.
+                speaker_diarization:
+                  type: boolean
+                  default: true
+                  description: |
+                    Speaker diarization identifies different speakers in the audio.
+                    When enabled, each utterance includes a speaker identifier (e.g., 1, 2).
+                emotion_signal:
+                  type: boolean
+                  default: false
+                  description: |
+                    Emotion detection for each utterance. When enabled, each utterance
+                    includes an emotion signal detected from the speaker's voice.
+                accent_signal:
+                  type: boolean
+                  default: false
+                  description: |
+                    Accent detection for each utterance. When enabled, each utterance
+                    includes an accent signal detected from the speaker's voice.
+                pii_phi_tagging:
+                  type: boolean
+                  default: false
+                  description: |
+                    PII/PHI tagging in utterance text. When enabled, personally
+                    identifiable information and personal health information are wrapped
+                    with appropriate tags in the transcription text.
+      responses:
+        '200':
+          description: Transcription completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionResponse'
+              examples:
+                multilingual:
+                  summary: Transcription with multiple languages
+                  value:
+                    text: "Hello, how are you? Bonjour, ça va?"
+                    duration_ms: 5000
+                    utterances:
+                      - utterance_uuid: "e5f6a7b8-c9d0-1234-efab-345678901234"
+                        text: "Hello, how are you?"
+                        start_ms: 0
+                        duration_ms: 2000
+                        speaker: 1
+                        language: "en"
+                        emotion: "Neutral"
+                        accent: "American"
+                      - utterance_uuid: "f6a7b8c9-d0e1-2345-fabc-456789012345"
+                        text: "Bonjour, ça va?"
+                        start_ms: 2500
+                        duration_ms: 2500
+                        speaker: 2
+                        language: "fr"
+                        emotion: "Happy"
+                        accent: "British"
+
+        '400':
+          description: Bad request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_format:
+                  summary: Invalid file format
+                  value:
+                    detail: "Invalid file format. Supported formats: .aac, .aiff, .flac, .mp3, .mp4, .mov, .ogg, .opus, .wav, .webm"
+                empty_file:
+                  summary: Empty file provided
+                  value:
+                    detail: "Empty file provided."
+
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_key:
+                  summary: Invalid API key
+                  value:
+                    detail: "Invalid API key."
+
+        '403':
+          description: Forbidden - Access to model not enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                model_disabled:
+                  summary: Model access not enabled
+                  value:
+                    detail: "Access to this model is not enabled for your organization."
+
+        '429':
+          description: Too many requests - Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                monthly_limit:
+                  summary: Monthly usage limit exceeded
+                  value:
+                    detail: "Monthly usage limit exceeded for this model."
+                concurrent_limit:
+                  summary: Too many concurrent requests
+                  value:
+                    detail: "Too many concurrent requests for this model. Please try again shortly."
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for authentication. Your API key must be included in the `X-API-Key` header
+        for all requests. API keys are tied to your organization and
+        determine your access to models and usage limits.
+
+  schemas:
+    TranscriptionResponse:
+      type: object
+      required:
+        - text
+        - duration_ms
+        - utterances
+      properties:
+        text:
+          type: string
+          description: |
+            The complete transcribed text from the audio file, containing all utterances
+            concatenated together. This provides a full transcript of the audio content.
+          example: "Hello everyone. Welcome to the meeting."
+        duration_ms:
+          type: integer
+          format: int32
+          minimum: 0
+          description: |
+            The total duration of the processed audio in milliseconds. This value represents
+            the actual audio duration and is used for usage tracking and billing purposes.
+          example: 45000
+        utterances:
+          type: array
+          description: |
+            Array of individual utterances detected in the audio, ordered by start time.
+            Each utterance represents a continuous segment of speech, potentially from a
+            specific speaker if diarization is enabled.
+          items:
+            $ref: '#/components/schemas/Utterance'
+
+    Utterance:
+      type: object
+      required:
+        - utterance_uuid
+        - text
+        - start_ms
+        - duration_ms
+        - speaker
+        - language
+        - emotion
+        - accent
+      properties:
+        utterance_uuid:
+          type: string
+          format: uuid
+          description: |
+            Unique identifier for this utterance.
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        text:
+          type: string
+          description: |
+            The transcribed text for this utterance. Represents a single continuous segment
+            of speech.
+          example: "Hello everyone."
+        start_ms:
+          type: integer
+          format: int32
+          minimum: 0
+          description: |
+            The start time of this utterance in milliseconds, relative to the beginning
+            of the audio file. Allows precise synchronization with the original audio.
+          example: 0
+        duration_ms:
+          type: integer
+          format: int32
+          minimum: 0
+          description: |
+            The duration of this utterance in milliseconds.
+          example: 2500
+        speaker:
+          type: integer
+          description: |
+            Speaker number for this utterance (1-indexed). When speaker diarization is enabled,
+            this identifies which speaker produced this utterance. Speaker numbers are consistent
+            within a single audio file but may vary between different files.
+          example: 1
+        language:
+          type: string
+          description: |
+            The automatically detected language code for this utterance (e.g., "en" for English,
+            "fr" for French).
+          example: "en"
+        emotion:
+          type: string
+          nullable: true
+          description: |
+            Detected emotion signal for this utterance. Null if emotion detection is disabled.
+            Possible values include: Neutral, Calm, Happy, Amused, Excited, Proud, Affectionate,
+            Interested, Hopeful, Frustrated, Angry, Contemptuous, Concerned, Afraid, Sad,
+            Ashamed, Bored, Tired, Surprised, Anxious, Stressed, Disgusted, Disappointed,
+            Confused, Relieved, Confident.
+          example: "Neutral"
+        accent:
+          type: string
+          nullable: true
+          description: |
+            Detected accent signal for this utterance. Null if accent detection is disabled.
+            Possible values include: American, British, Australian, Southern, Indian, Irish,
+            Scottish, Eastern_European, African, Asian, Latin_American, Middle_Eastern, Unknown.
+          example: "American"
+
+    Error:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message describing what went wrong
+          example: "Invalid file format. Supported formats: .aac, .aiff, .flac, .mp3, .mp4, .mov, .ogg, .opus, .wav, .webm"

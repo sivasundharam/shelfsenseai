@@ -1,0 +1,211 @@
+openapi: 3.1.0
+info:
+  title: Modulate English STT Batch Server
+  version: 0.0.0
+  description: |
+    API for batch transcribing english audio files in English. This service provides optimized processing
+    for English language audio with automatic capitalization and punctuation.
+
+    **Features:**
+    - Fast batch processing optimized for English
+    - Automatic capitalization using named entity recognition
+    - Automatic punctuation
+    - Support for audio files up to 100MB
+    - Returns full transcript text with audio duration
+
+    **Audio Format:**
+    - Format: Opus audio files (.opus)
+    - Maximum file size: 100MB
+
+    **Authentication:**
+    All API requests require authentication using an API key provided in the `X-API-Key` header.
+
+    **Rate Limiting:**
+    - Concurrent request limits apply per organization and model
+    - Monthly usage limits (in audio hours) apply per organization and model
+    - Requests exceeding limits will receive appropriate error responses
+
+servers:
+  - url: https://modulate-prototype-apis.com
+    description: Modulate English STT Batch Server
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /api/velma-2-stt-batch-english-vfast:
+    post:
+      summary: Transcribe English audio file
+      description: |
+        Transcribe an English audio file to text. The service processes the audio in batches for
+        optimal performance and returns a complete transcript with automatic capitalization and punctuation.
+
+        **Processing:**
+        - Audio is automatically chunked for efficient processing
+        - Transcription includes named entity recognition for proper capitalization
+        - First-person pronoun "I" and sentence beginnings are automatically capitalized
+        - Results typically returned within seconds depending on audio length
+
+        **Timeouts:**
+        - Request timeout: 60 seconds total processing time
+        - If processing exceeds timeout, a 504 error is returned
+      operationId: transcribeEnglishBatchFast
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - upload_file
+              properties:
+                upload_file:
+                  type: string
+                  format: binary
+                  description: |
+                    Audio file in Opus format (.opus extension required).
+                    Maximum file size: 100MB.
+                    Empty files are rejected.
+      responses:
+        '200':
+          description: Transcription completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - text
+                  - duration_ms
+                properties:
+                  text:
+                    type: string
+                    description: |
+                      The complete transcribed text from the audio file. Text includes automatic
+                      capitalization and punctuation. Multiple sentences are separated by appropriate
+                      punctuation marks.
+                    example: "Hello, this is a sample transcription. It includes proper capitalization and punctuation."
+                  duration_ms:
+                    type: integer
+                    format: int32
+                    minimum: 0
+                    description: |
+                      The total duration of the processed audio in milliseconds. This value represents
+                      the actual audio duration and is used for usage tracking and billing purposes.
+                    example: 12500
+              examples:
+                short_audio:
+                  summary: Short audio transcription
+                  value:
+                    text: "Good morning, everyone."
+                    duration_ms: 2000
+                longer_audio:
+                  summary: Longer audio with multiple sentences
+                  value:
+                    text: "Welcome to today's meeting. We'll be discussing the quarterly results and planning for next quarter. Let's begin with the sales report."
+                    duration_ms: 15800
+
+        '400':
+          description: Bad request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_format:
+                  summary: Invalid file format
+                  value:
+                    detail: "Invalid file format. Only .opus files are supported."
+                empty_file:
+                  summary: Empty file provided
+                  value:
+                    detail: "Empty file provided."
+                decode_error:
+                  summary: Audio decoding failed
+                  value:
+                    detail: "Could not decode audio file."
+
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_key:
+                  summary: Invalid API key
+                  value:
+                    detail: "Invalid API key."
+
+        '403':
+          description: Forbidden - Access to model not enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                model_disabled:
+                  summary: Model access not enabled
+                  value:
+                    detail: "Access to this model is not enabled for your organization."
+
+        '429':
+          description: Too many requests - Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                monthly_limit:
+                  summary: Monthly usage limit exceeded
+                  value:
+                    detail: "Monthly usage limit exceeded for this model."
+                concurrent_limit:
+                  summary: Too many concurrent requests
+                  value:
+                    detail: "Too many concurrent requests for this model. Please try again shortly."
+
+        '503':
+          description: Service unavailable - Server overloaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                overloaded:
+                  summary: Server overloaded
+                  value:
+                    detail: "Server is overloaded. Please try again later."
+
+        '504':
+          description: Gateway timeout - Processing timeout exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                timeout:
+                  summary: Processing timeout
+                  value:
+                    detail: "Transcription timed out."
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for authentication. Your API key must be included in the `X-API-Key` header
+        for all requests. API keys are tied to your organization and
+        determine your access to models and usage limits.
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message describing what went wrong
+          example: "Invalid file format. Only .opus files are supported."

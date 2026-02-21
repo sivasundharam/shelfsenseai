@@ -1,0 +1,22 @@
+[
+  {"event_id":"s1","ts":1,"person_id":1,"zone":"Aisle_1","dwell_time":25,"motion_score":0.09,"recent_zone_history":["Aisle_1"],"zone_alert_rate":5.2},
+  {"event_id":"s2","ts":2,"person_id":2,"zone":"Aisle_1","dwell_time":18,"motion_score":0.07,"recent_zone_history":["Aisle_1"],"zone_alert_rate":4.8},
+  {"event_id":"s3","ts":3,"person_id":3,"zone":"Aisle_2","dwell_time":29,"motion_score":0.11,"recent_zone_history":["Aisle_2"],"zone_alert_rate":3.2},
+  {"event_id":"s4","ts":4,"person_id":4,"zone":"Checkout","dwell_time":30,"motion_score":0.08,"recent_zone_history":["Checkout"],"zone_alert_rate":2.1},
+  {"event_id":"s5","ts":5,"person_id":5,"zone":"Aisle_2","dwell_time":27,"motion_score":0.04,"recent_zone_history":["Aisle_2"],"zone_alert_rate":5.5},
+  {"event_id":"s6","ts":6,"person_id":6,"zone":"Aisle_1","dwell_time":33,"motion_score":0.12,"recent_zone_history":["Aisle_1"],"zone_alert_rate":6.0},
+  {"event_id":"s7","ts":7,"person_id":7,"zone":"Checkout","dwell_time":16,"motion_score":0.40,"recent_zone_history":["Checkout"],"zone_alert_rate":1.0},
+  {"event_id":"s8","ts":8,"person_id":8,"zone":"Aisle_2","dwell_time":22,"motion_score":0.13,"recent_zone_history":["Aisle_2"],"zone_alert_rate":4.1},
+  {"event_id":"s9","ts":9,"person_id":9,"zone":"Aisle_1","dwell_time":35,"motion_score":0.05,"recent_zone_history":["Aisle_1"],"zone_alert_rate":6.5},
+  {"event_id":"s10","ts":10,"person_id":10,"zone":"Checkout","dwell_time":24,"motion_score":0.14,"recent_zone_history":["Checkout"],"zone_alert_rate":3.9},
+  {"event_id":"s11","ts":11,"person_id":11,"zone":"Aisle_2","dwell_time":31,"motion_score":0.10,"recent_zone_history":["Aisle_2"],"zone_alert_rate":5.7},
+  {"event_id":"s12","ts":12,"person_id":12,"zone":"Aisle_1","dwell_time":20,"motion_score":0.11,"recent_zone_history":["Aisle_1"],"zone_alert_rate":5.0},
+  {"event_id":"s13","ts":13,"person_id":13,"zone":"Checkout","dwell_time":26,"motion_score":0.09,"recent_zone_history":["Checkout"],"zone_alert_rate":4.2},
+  {"event_id":"s14","ts":14,"person_id":14,"zone":"Aisle_2","dwell_time":34,"motion_score":0.06,"recent_zone_history":["Aisle_2"],"zone_alert_rate":6.3},
+  {"event_id":"s15","ts":15,"person_id":15,"zone":"Aisle_1","dwell_time":28,"motion_score":0.04,"recent_zone_history":["Aisle_1"],"zone_alert_rate":6.8},
+  {"event_id":"s16","ts":16,"person_id":16,"zone":"Checkout","dwell_time":21,"motion_score":0.10,"recent_zone_history":["Checkout"],"zone_alert_rate":4.0},
+  {"event_id":"s17","ts":17,"person_id":17,"zone":"Aisle_1","dwell_time":17,"motion_score":0.29,"recent_zone_history":["Aisle_1"],"zone_alert_rate":2.2},
+  {"event_id":"s18","ts":18,"person_id":18,"zone":"Aisle_2","dwell_time":26,"motion_score":0.08,"recent_zone_history":["Aisle_2"],"zone_alert_rate":5.4},
+  {"event_id":"s19","ts":19,"person_id":19,"zone":"Checkout","dwell_time":29,"motion_score":0.07,"recent_zone_history":["Checkout"],"zone_alert_rate":4.5},
+  {"event_id":"s20","ts":20,"person_id":20,"zone":"Aisle_1","dwell_time":32,"motion_score":0.05,"recent_zone_history":["Aisle_1"],"zone_alert_rate":6.1}
+]
